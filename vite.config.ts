@@ -1,3 +1,4 @@
+import { Agent } from "node:https";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -10,8 +11,17 @@ const WORKERS = {
   prod: "https://env-vault-api.alexdev93.workers.dev",
 };
 
+// Node tries each of the Worker's IPv6/IPv4 addresses for only 250ms by default,
+// which times out (ETIMEDOUT -> 502) on high-latency networks or where IPv6 is
+// unreachable. Allow 1s per address, and keep connections alive so the slow
+// TLS setup happens once instead of on every request.
+const prodAgent = new Agent({ keepAlive: true, autoSelectFamilyAttemptTimeout: 1000 });
+
 export default defineConfig(({ mode }) => {
-  const target = { target: mode === "prod" ? WORKERS.prod : WORKERS.local, changeOrigin: true };
+  const target =
+    mode === "prod"
+      ? { target: WORKERS.prod, changeOrigin: true, agent: prodAgent }
+      : { target: WORKERS.local, changeOrigin: true };
   return {
     plugins: [react()],
     server: {
