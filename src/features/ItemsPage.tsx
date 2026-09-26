@@ -70,6 +70,15 @@ export function ItemsPage({ items, loadError, onRetry, type, onType, onNew, onOp
           onChange={(t) => onType(t === "all" ? null : t)}
           options={[["all", `All · ${all.length}`], ["login", `Logins · ${count("login")}`], ["note", `Notes · ${count("note")}`], ["secret", `Secrets · ${count("secret")}`]]}
         />
+        {/* Phones hide the segment (see .list-toolbar .seg), so they get a dropdown instead. */}
+        <div className="list-selects list-selects-single">
+          <select className="select phone-only" aria-label="Type" value={type ?? "all"} onChange={(e) => onType(e.target.value === "all" ? null : (e.target.value as ItemType))}>
+            <option value="all">Show: All · {all.length}</option>
+            <option value="login">Show: Logins · {count("login")}</option>
+            <option value="note">Show: Notes · {count("note")}</option>
+            <option value="secret">Show: Secrets · {count("secret")}</option>
+          </select>
+        </div>
       </div>
 
       <div className="list-cols" aria-hidden="true">
@@ -80,7 +89,7 @@ export function ItemsPage({ items, loadError, onRetry, type, onType, onNew, onOp
         {items === null ? (
           <SkeletonRows />
         ) : shown.length ? (
-          <ul className="rows" aria-label={`${shown.length} items`}>
+          <ul className="rows rows-long-codes" aria-label={`${shown.length} items`}>
             {shown.map((it) => (
               <li key={it.id} className="row">
                 <button type="button" className="row-main" onClick={() => onOpen(it.id)}>

@@ -492,6 +492,10 @@ textarea.input[rows="2"] { min-height: 64px; }
   .tabs { padding: 0 var(--s2); }
   .project-page { padding: var(--s4) var(--s4) var(--s12); }
   .field-pair { grid-template-columns: 1fr; }
+  .list-selects-single { grid-template-columns: 1fr; }
+  .rows-long-codes .row-main { grid-template-columns: 64px minmax(0, 1fr); }
+  .list-toolbar .branch-switch { width: 100%; }
+  .list-toolbar .branch-switch .select { max-width: none; width: 100%; height: var(--target); }
   .branch-banner { padding: var(--s2) var(--s4); }
   .detail-row { grid-template-columns: 1fr 40px; }
   .detail-row .input:first-child { grid-column: 1 / -1; }

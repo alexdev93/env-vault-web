@@ -22,7 +22,7 @@ export type Guard = (fn: () => Promise<void>) => Promise<void>;
 export function ProjectTabs({ project, tab, onTab }: { project: Project; tab: ProjectTab; onTab: (t: ProjectTab) => void }) {
   const tabs: [ProjectTab, string][] = [
     ["vars", `Variables · ${project.keys.length}`],
-    ["overview", `Overview · ${project.services.length} services`],
+    ["overview", "Overview"],
     ["branches", `Branches · ${project.branches.length}`],
   ];
   return (
