@@ -18,14 +18,20 @@ export interface Service {
   project_id: string;
   kind: string;
   provider: string;
+  /** The resource at the provider: the Neon project, the Cloudflare Worker… */
+  name: string;
   url: string;
   account: string;
+  region: string;
+  plan: string;
   notes: string;
+  /** Variables this service provides (DATABASE_URL comes from Neon). */
+  var_keys: string[];
   created_at: string;
   updated_at: string;
 }
 
-export type ServiceInput = Pick<Service, "kind" | "provider" | "url" | "account" | "notes">;
+export type ServiceInput = Pick<Service, "kind" | "provider" | "name" | "url" | "account" | "region" | "plan" | "notes" | "var_keys">;
 
 export interface Branch {
   id: string;
@@ -43,6 +49,13 @@ export interface BranchVar {
   overrides: boolean;
 }
 
+export type ProjectStatus = "" | "idea" | "building" | "live" | "maintenance" | "archived";
+
+export interface ProjectDetailField {
+  label: string;
+  value: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -50,6 +63,10 @@ export interface Project {
   notes: string;
   repo_url: string;
   site_url: string;
+  status: ProjectStatus;
+  stack: string;
+  /** Free-form extra facts: "Deploy command" → "npm run deploy". */
+  details: ProjectDetailField[];
   created_at: string;
   updated_at: string;
   keys: string[];
@@ -59,7 +76,38 @@ export interface Project {
 
 export type ProjectDetail = Omit<Project, "branches"> & { branches: (Branch & { vars: BranchVar[] })[] };
 
-export type ProjectInput = Pick<Project, "name" | "description" | "notes" | "repo_url" | "site_url">;
+export type ProjectInput = Pick<Project, "name" | "description" | "notes" | "repo_url" | "site_url" | "status" | "stack" | "details">;
+
+export type ItemType = "login" | "note" | "secret";
+
+/** A personal vault item that isn't an environment variable. The value (password, note, secret) is fetched separately. */
+export interface Item {
+  id: string;
+  type: ItemType;
+  title: string;
+  url: string;
+  username: string;
+  notes: string;
+  project_id: string | null;
+  project: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ItemInput = Pick<Item, "title" | "url" | "username" | "notes" | "project_id"> & { type?: ItemType; value?: string };
+
+/** One replaced value. Values are fetched one at a time, like everything else. */
+export interface HistoryEntry {
+  id: number;
+  created_at: string;
+}
+
+/** What a history belongs to: a variable, one branch's value, or a personal item. */
+export const owners = {
+  var: (key: string) => `var:${key}`,
+  branch: (branchId: string, key: string) => `branch:${branchId}:${key}`,
+  item: (id: string) => `item:${id}`,
+};
 
 export class UnauthorizedError extends Error {
   constructor() {
@@ -122,6 +170,16 @@ export const api = {
   updateBranchVar: (branchId: string, key: string, changes: { key?: string; value?: string; notes?: string }) =>
     send<{ ok: true; key: string }>("PATCH", branchVarPath(branchId, key), changes),
   deleteBranchVar: (branchId: string, key: string) => send("DELETE", branchVarPath(branchId, key)),
+
+  listItems: () => request<Item[]>("/api/items"),
+  getItemValue: async (id: string) => (await request<{ value: string }>(`/api/items/${enc(id)}/value`, { cache: "no-store" })).value,
+  createItem: (input: ItemInput & { type: ItemType; value: string }) => send<{ ok: true; id: string }>("POST", "/api/items", input),
+  updateItem: (id: string, changes: Partial<ItemInput>) => send<{ ok: true; id: string }>("PATCH", `/api/items/${enc(id)}`, changes),
+  deleteItem: (id: string) => send("DELETE", `/api/items/${enc(id)}`),
+
+  history: (owner: string) => request<HistoryEntry[]>(`/api/history?owner=${enc(owner)}`, { cache: "no-store" }),
+  getHistoryValue: async (id: number) => (await request<{ value: string }>(`/api/history/${id}/value`, { cache: "no-store" })).value,
+  restoreHistory: (id: number) => send<{ ok: true; owner: string }>("POST", `/api/history/${id}/restore`, {}),
 };
 
 // Login is special-cased: a 401 here means "wrong password", not "session expired".

@@ -7,6 +7,7 @@ import { Highlight } from "../ui/Highlight";
 import { Icon } from "../ui/Icon";
 import { Seg } from "../ui/Seg";
 import { Tag } from "../ui/Tag";
+import { StatusTag } from "./ProjectPages";
 
 export type Filter = "all" | "shared" | "untagged";
 export type Sort = "changed" | "name";
@@ -50,6 +51,8 @@ interface Props {
   searchRef: RefObject<HTMLInputElement | null>;
   /** Project section tabs, shown under the heading on a project page. */
   tabs?: ReactNode;
+  /** Extra toolbar control, e.g. the branch switch on a project page. */
+  toolbarExtra?: ReactNode;
 }
 
 export function VaultList(p: Props) {
@@ -67,9 +70,18 @@ export function VaultList(p: Props) {
     <section className="list-pane" aria-labelledby="list-title">
       <header className="page-head">
         <div className="grow">
-          <div className="eyebrow">{p.project ? "Project" : "Vault"}</div>
-          <h1 id="list-title" className={p.project ? "mono" : undefined}>{p.project ? p.project.name : "All items"}</h1>
-          {p.project?.description && <p className="page-sub">{p.project.description}</p>}
+          <div className="eyebrow-row page-eyebrow">
+            <span className="eyebrow">{p.project ? "Project" : "Vault"}</span>
+            {p.project && <StatusTag status={p.project.status} />}
+          </div>
+          <h1 id="list-title" className={p.project ? "mono" : undefined}>{p.project ? p.project.name : "All variables"}</h1>
+          {p.project && (p.project.description || p.project.stack) && (
+            <p className="page-sub">
+              {p.project.description}
+              {p.project.description && p.project.stack && " · "}
+              {p.project.stack && <span className="mono">{p.project.stack}</span>}
+            </p>
+          )}
         </div>
         <Button className="hide-phone" onClick={p.onNewProject}>New project</Button>
         <Button variant="primary" className="new-btn" trailing={<Icon name="plus" size={15} />} onClick={p.onNew}>
@@ -98,6 +110,7 @@ export function VaultList(p: Props) {
           />
           <kbd aria-hidden="true">/</kbd>
         </div>
+        {p.toolbarExtra}
         <Seg
           label="Show"
           value={p.filter}
@@ -159,6 +172,14 @@ export function VaultList(p: Props) {
             actions={<><Button variant="primary" onClick={p.onNew}>Add your first secret</Button><Button onClick={p.onNewProject}>Create a project</Button></>}
           >
             Add your first secret, then tag it with the projects that use it.
+          </EmptyState>
+        ) : p.project && p.project.keys.length === 0 && !p.query ? (
+          <EmptyState
+            title={<><span className="mono">{p.project.name}</span> has no variables yet.</>}
+            actions={<Button variant="primary" onClick={p.onNew}>Add its first variable</Button>}
+          >
+            Add the environment variables it needs, like DATABASE_URL or API keys. They’re its defaults: every run gets them, and each
+            branch can override any of them. Already have one in the vault? Edit it and tick this project.
           </EmptyState>
         ) : (
           <EmptyState

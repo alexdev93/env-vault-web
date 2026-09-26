@@ -1,10 +1,11 @@
-import type { Var } from "../lib/api";
+import { owners, type Service, type Var } from "../lib/api";
 import { CLIPBOARD_CLEAR_SECONDS, useSettings } from "../lib/settings";
-import { longDate } from "../lib/format";
+import { findKind, findProvider, longDate } from "../lib/format";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { SecretField } from "../ui/SecretField";
 import { Tag } from "../ui/Tag";
+import { HistoryList } from "./HistoryList";
 
 interface Props {
   v: Var;
@@ -12,9 +13,14 @@ interface Props {
   onCopy: (value: string) => Promise<void> | void;
   onEdit: () => void;
   onDelete: () => void;
+  /** Services (in any project) that provide this variable. */
+  sources?: { project: string; service: Service }[];
+  /** After a restore from history. */
+  onRestored?: () => Promise<void> | void;
+  onUnauthorized?: () => void;
 }
 
-function Body({ v, fetchValue, onCopy }: Props) {
+function Body({ v, fetchValue, onCopy, sources = [], onRestored, onUnauthorized }: Props) {
   const [settings] = useSettings();
   return (
     <div className="detail-body">
@@ -45,9 +51,27 @@ function Body({ v, fetchValue, onCopy }: Props) {
       <dl className="details">
         <dt>Projects</dt>
         <dd className="tag-row">{v.projects.length ? v.projects.map((p) => <Tag key={p} mono>{p}</Tag>) : "Personal (no project)"}</dd>
+        {sources.length > 0 && (
+          <>
+            <dt>Comes from</dt>
+            <dd className="stack-sm">
+              {sources.map(({ project, service }) => {
+                const label = findProvider(service.kind, service.provider)?.label ?? (service.provider || service.kind);
+                const kind = findKind(service.kind)?.label ?? service.kind;
+                return (
+                  <span key={service.id}>
+                    {label}{kind && <span className="muted"> · {kind}</span>}{service.name && <span className="mono"> · {service.name}</span>}{" "}
+                    <span className="muted small">({project})</span>
+                  </span>
+                );
+              })}
+            </dd>
+          </>
+        )}
         <dt>Changed</dt>
         <dd>{longDate(v.updated_at)}</dd>
       </dl>
+      <HistoryList owner={owners.var(v.key)} label={v.key} version={v.updated_at} onRestored={onRestored} onUnauthorized={onUnauthorized} />
     </div>
   );
 }

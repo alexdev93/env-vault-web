@@ -1,8 +1,9 @@
 import { useMemo, useState, type KeyboardEvent } from "react";
-import type { Project, Var } from "../lib/api";
+import type { Item, Project, Var } from "../lib/api";
 import { Dialog } from "../ui/Dialog";
 import { Highlight } from "../ui/Highlight";
 import { Icon } from "../ui/Icon";
+import { ITEM_CODES } from "./ProjectPages";
 import { isMac } from "./shortcuts";
 
 export interface Command {
@@ -19,7 +20,10 @@ export interface Command {
 interface Props {
   vars: Var[];
   projects: Project[];
+  items: Item[];
   actions: Command[];
+  onOpenItem: (id: string) => void;
+  onCopyItem: (id: string) => void;
   onOpenVar: (key: string) => void;
   onOpenProject: (name: string) => void;
   onCopyVar: (key: string) => void;
@@ -29,7 +33,7 @@ interface Props {
 const MAX_ITEMS = 8;
 
 // role=combobox input driving a listbox through aria-activedescendant (1f).
-export function CommandPalette({ vars, projects, actions, onOpenVar, onOpenProject, onCopyVar, onClose }: Props) {
+export function CommandPalette({ vars, projects, items: personal, actions, onOpenVar, onOpenProject, onCopyVar, onOpenItem, onCopyItem, onClose }: Props) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
 
@@ -49,6 +53,18 @@ export function CommandPalette({ vars, projects, actions, onOpenVar, onOpenProje
         run: () => onOpenVar(v.key),
         copy: () => onCopyVar(v.key),
       }));
+    const mine: Command[] = personal
+      .filter((it) => hit(it.title) || hit(it.username) || hit(it.url))
+      .slice(0, MAX_ITEMS)
+      .map((it) => ({
+        id: `item-${it.id}`,
+        group: "Items",
+        code: ITEM_CODES[it.type],
+        label: it.title,
+        hint: it.username || it.project || "Personal",
+        run: () => onOpenItem(it.id),
+        copy: () => onCopyItem(it.id),
+      }));
     const projs: Command[] = projects.filter((p) => hit(p.name)).slice(0, 5).map((p) => ({
       id: `proj-${p.id}`,
       group: "Projects",
@@ -58,8 +74,8 @@ export function CommandPalette({ vars, projects, actions, onOpenVar, onOpenProje
       hint: `${p.keys.length} variables`,
       run: () => onOpenProject(p.name),
     }));
-    return [...items, ...projs, ...actions.filter((a) => hit(a.label))];
-  }, [query, vars, projects, actions, onOpenVar, onOpenProject, onCopyVar]);
+    return [...items, ...mine, ...projs, ...actions.filter((a) => hit(a.label))];
+  }, [query, vars, personal, projects, actions, onOpenVar, onOpenProject, onCopyVar, onOpenItem, onCopyItem]);
 
   const current = results[Math.min(active, results.length - 1)];
   const run = (c: Command | undefined) => {

@@ -11,15 +11,17 @@ interface Props {
   branch: Branch;
   /** null adds a new branch variable. */
   editing: BranchVar | null;
+  /** Pre-filled key for a new override ("Override on main"). */
+  initialKey?: string;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }
 
 /** A value for one branch only. Same key as a project default overrides it on that branch. */
-export function BranchVarDialog({ project, branch, editing, onClose, onSaved }: Props) {
+export function BranchVarDialog({ project, branch, editing, initialKey, onClose, onSaved }: Props) {
   const toast = useToast();
   const listId = useId();
-  const [key, setKey] = useState(editing?.key ?? "");
+  const [key, setKey] = useState(editing?.key ?? initialKey ?? "");
   // Editing loads the current value only while this dialog is open.
   const [value, setValue] = useState<string | null>(editing ? null : "");
   const [notes, setNotes] = useState(editing?.notes ?? "");
@@ -70,7 +72,7 @@ export function BranchVarDialog({ project, branch, editing, onClose, onSaved }: 
     >
       <form id="branch-var-form" className="form" onSubmit={(e) => e.preventDefault()}>
         <Field label="Key" htmlFor="bvar-key" hint="Pick a project default to override it, or type a new key for this branch only.">
-          <input id="bvar-key" className="input input-lg mono" list={listId} placeholder="DATABASE_URL" autoComplete="off" spellCheck={false} autoFocus={!editing} value={key} onChange={(e) => setKey(e.target.value)} />
+          <input id="bvar-key" className="input input-lg mono" list={listId} placeholder="DATABASE_URL" autoComplete="off" spellCheck={false} autoFocus={!editing && !initialKey} value={key} onChange={(e) => setKey(e.target.value)} />
           <datalist id={listId}>{project.keys.map((pk) => <option key={pk} value={pk} />)}</datalist>
         </Field>
         {k && KEY_RE.test(k) && (
@@ -83,7 +85,7 @@ export function BranchVarDialog({ project, branch, editing, onClose, onSaved }: 
           </div>
         )}
         <Field label="Value" htmlFor="bvar-value">
-          <textarea id="bvar-value" className="input mono" placeholder={value === null ? "Loading…" : "The value for this branch"} autoComplete="off" spellCheck={false} autoFocus={!!editing} disabled={value === null} rows={4} value={value ?? ""} onChange={(e) => setValue(e.target.value)} />
+          <textarea id="bvar-value" className="input mono" placeholder={value === null ? "Loading…" : "The value for this branch"} autoComplete="off" spellCheck={false} autoFocus={!!editing || !!initialKey} disabled={value === null} rows={4} value={value ?? ""} onChange={(e) => setValue(e.target.value)} />
         </Field>
         <Field label="Notes" htmlFor="bvar-notes">
           <textarea id="bvar-notes" className="input" rows={2} placeholder="Neon branch “production”" value={notes} onChange={(e) => setNotes(e.target.value)} />

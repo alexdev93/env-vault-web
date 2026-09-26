@@ -1,14 +1,16 @@
-import type { Project } from "../lib/api";
+import type { Item, ItemType, Project } from "../lib/api";
 import { projectColor } from "../lib/format";
 import { Icon } from "../ui/Icon";
 import { isMac } from "./shortcuts";
 
-export type View = { kind: "vault"; project: string | null } | { kind: "settings" };
+export type View = { kind: "vault"; project: string | null } | { kind: "items"; type: ItemType | null } | { kind: "settings" };
 
 interface Props {
   view: View;
   total: number;
   projects: Project[];
+  items: Item[];
+  onNewItem: () => void;
   onNavigate: (view: View) => void;
   onPalette: () => void;
   onNewProject: () => void;
@@ -16,7 +18,7 @@ interface Props {
   onLogout: () => void;
 }
 
-export function Sidebar({ view, total, projects, onNavigate, onPalette, onNewProject, onUsage, onLogout }: Props) {
+export function Sidebar({ view, total, projects, items, onNewItem, onNavigate, onPalette, onNewProject, onUsage, onLogout }: Props) {
   const isAll = view.kind === "vault" && view.project === null;
   const current = (on: boolean) => (on ? { "aria-current": "page" as const } : {});
 
@@ -35,7 +37,7 @@ export function Sidebar({ view, total, projects, onNavigate, onPalette, onNewPro
 
       <div className="nav-list">
         <button type="button" className="nav-item" {...current(isAll)} onClick={() => onNavigate({ kind: "vault", project: null })}>
-          <span className="grow">All items</span>
+          <span className="grow">All variables</span>
           <span className="nav-count">{total}</span>
         </button>
       </div>
@@ -61,6 +63,21 @@ export function Sidebar({ view, total, projects, onNavigate, onPalette, onNewPro
           </button>
         ))}
         {projects.length === 0 && <p className="nav-empty">No projects yet.</p>}
+      </div>
+
+      <div className="nav-heading">
+        <span>Personal</span>
+        <button type="button" className="btn btn-ghost btn-icon btn-sm" aria-label="New personal item" onClick={onNewItem}>
+          <Icon name="plus" size={15} />
+        </button>
+      </div>
+      <div className="nav-list">
+        {([["login", "Logins"], ["note", "Secure notes"], ["secret", "Secrets"]] as const).map(([t, label]) => (
+          <button key={t} type="button" className="nav-item" {...current(view.kind === "items" && view.type === t)} onClick={() => onNavigate({ kind: "items", type: t })}>
+            <span className="grow">{label}</span>
+            <span className="nav-count">{items.filter((it) => it.type === t).length}</span>
+          </button>
+        ))}
       </div>
 
       <div className="nav-foot">

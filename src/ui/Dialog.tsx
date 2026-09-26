@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 export interface DialogProps {
   /** Heading text; also labels the dialog for screen readers. */
@@ -22,10 +22,15 @@ export interface DialogProps {
 export function Dialog({ title, eyebrow, onClose, children, footer, width = 520, variant = "dialog", bare, className }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  // The contents mount only once the dialog is open: a closed <dialog> is display:none, so
+  // React's autoFocus (which runs as elements mount) would otherwise focus nothing. This all
+  // happens before the first paint, so the empty frame is never seen.
+  const [open, setOpen] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const d = ref.current;
     if (d && !d.open) d.showModal();
+    setOpen(true);
   }, []);
 
   return (
@@ -42,7 +47,7 @@ export function Dialog({ title, eyebrow, onClose, children, footer, width = 520,
       // The dialog element itself is only hit outside .dialog-inner, i.e. on the backdrop.
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="dialog-inner">
+      {open && <div className="dialog-inner">
         {variant === "dialog" && !bare && <span className="sheet-handle" aria-hidden="true" />}
         {bare ? (
           <h2 id={titleId} className="visually-hidden">{title}</h2>
@@ -59,7 +64,7 @@ export function Dialog({ title, eyebrow, onClose, children, footer, width = 520,
         )}
         <div className="dialog-body">{children}</div>
         {footer && <footer className="dialog-foot">{footer}</footer>}
-      </div>
+      </div>}
     </dialog>
   );
 }

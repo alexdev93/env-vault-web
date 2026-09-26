@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, UnauthorizedError, type Project, type Var } from "./lib/api";
+import { api, UnauthorizedError, type Item, type ItemType, type Project, type Var } from "./lib/api";
 import { DESKTOP, PHONE, useMediaQuery, WIDE } from "./lib/useMediaQuery";
 import { BottomNav } from "./features/BottomNav";
+import { BranchSwitch, BranchVarsView } from "./features/BranchView";
+import { ItemDialog, ITEM_LABELS } from "./features/ItemDialog";
+import { ItemDetailDialog, ItemsPage } from "./features/ItemsPage";
 import { CommandPalette, type Command } from "./features/CommandPalette";
 import { ProjectDialog } from "./features/ProjectDialog";
 import { ProjectBranches, ProjectOverview, ProjectTabs, type ProjectTab } from "./features/ProjectPages";
@@ -30,6 +33,9 @@ type Modal =
   | { kind: "palette" }
   | { kind: "shortcuts" }
   | { kind: "drawer" }
+  | { kind: "item"; editing: Item | null; type?: ItemType; projectId?: string | null }
+  | { kind: "itemDetail"; id: string }
+  | { kind: "deleteItem"; item: Item }
   | null;
 
 const isTyping = (el: Element | null) => !!el && (el.matches("input, textarea, select, [contenteditable]") || el.closest("dialog[open]") !== null);
@@ -44,9 +50,12 @@ export function App() {
   const [status, setStatus] = useState<Status>("booting");
   const [vars, setVars] = useState<Var[] | null>(null); // null = loading (skeleton)
   const [projects, setProjects] = useState<Project[]>([]);
+  const [items, setItems] = useState<Item[] | null>(null); // null = loading
   const [loadError, setLoadError] = useState<string | null>(null);
   const [view, setView] = useState<View>({ kind: "vault", project: null });
   const [tab, setTab] = useState<ProjectTab>("vars");
+  // The branch picked on a project's Variables tab; null is the defaults (no -b).
+  const [branchId, setBranchId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("changed");
@@ -69,14 +78,16 @@ export function App() {
 
   const refreshAll = useCallback(async () => {
     try {
-      const [v, p] = await Promise.all([api.listVars(), api.listProjects()]);
+      const [v, p, it] = await Promise.all([api.listVars(), api.listProjects(), api.listItems()]);
       setVars(v);
       setProjects(p);
+      setItems(it);
       setLoadError(null);
     } catch (e) {
       if (e instanceof UnauthorizedError) return setStatus("locked");
       setLoadError((e as Error).message);
       setVars((v) => v ?? []); // never leave the skeleton up after a failed load
+      setItems((it) => it ?? []);
     }
   }, []);
 
@@ -91,8 +102,14 @@ export function App() {
   }, [enterApp]);
 
   const project = view.kind === "vault" && view.project ? projects.find((p) => p.name === view.project) ?? null : null;
-  // The variable list is on screen: "All items", or a project's Variables tab.
-  const listShown = view.kind === "vault" && (!project || tab === "vars");
+  const branch = project && branchId ? project.branches.find((b) => b.id === branchId) ?? null : null;
+  // The variable list is on screen: "All variables", or a project's Variables tab showing the defaults.
+  const listShown = view.kind === "vault" && (!project || (tab === "vars" && !branch));
+
+  // A deleted (or other project's) branch falls back to the defaults.
+  useEffect(() => {
+    if (branchId && !branch) setBranchId(null);
+  }, [branchId, branch]);
   const shown = useMemo(
     () => (vars ? applyListState(vars, view.kind === "vault" ? view.project : null, filter, query, sort) : []),
     [vars, view, filter, query, sort],
@@ -125,12 +142,35 @@ export function App() {
   );
 
   const copyVar = useCallback((key: string) => guard(async () => copy(await api.getValue(key), key, true)), [guard, copy]);
+  const copyItem = useCallback(
+    (id: string) =>
+      guard(async () => {
+        const it = items?.find((x) => x.id === id);
+        copy(await api.getItemValue(id), it ? it.title : "value", true);
+      }),
+    [guard, copy, items],
+  );
 
   const navigate = useCallback((v: View) => {
     setView(v);
     setTab("vars");
+    setBranchId(null);
     setModal(null);
   }, []);
+
+  // From a project's Overview (a service's variable chip): show it in that project's list.
+  const openProjectVar = useCallback(
+    (key: string) => {
+      setTab("vars");
+      setBranchId(null);
+      setQuery("");
+      setFilter("all");
+      openVar(key);
+    },
+    [openVar],
+  );
+
+  const newItem = useCallback((type?: ItemType, projectId?: string | null) => setModal({ kind: "item", editing: null, type, projectId }), []);
 
   const lock = () =>
     guard(async () => {
@@ -144,6 +184,10 @@ export function App() {
     () => [
       { id: "new-var", group: "Actions", code: "NEW", label: "New variable", hint: "N", run: () => setModal({ kind: "var", editing: null }) },
       { id: "new-proj", group: "Actions", code: "NEW", label: "New project", run: () => setModal({ kind: "project", editing: null }) },
+      { id: "new-login", group: "Actions", code: "NEW", label: "New login", run: () => newItem("login") },
+      { id: "new-note", group: "Actions", code: "NEW", label: "New secure note", run: () => newItem("note") },
+      { id: "new-secret", group: "Actions", code: "NEW", label: "New secret", run: () => newItem("secret") },
+      { id: "personal", group: "Actions", code: "GO", label: "Go to personal vault", run: () => navigate({ kind: "items", type: null }) },
       ...(project
         ? ([
             { id: "edit-proj", group: "Actions", code: "EDIT", label: `Edit ${project.name}`, run: () => setModal({ kind: "project", editing: project }) },
@@ -155,7 +199,7 @@ export function App() {
       { id: "settings", group: "Actions", code: "GO", label: "Go to Settings", run: () => navigate({ kind: "settings" }) },
       { id: "shortcuts", group: "Actions", code: "GO", label: "Keyboard shortcuts", hint: "?", run: () => setModal({ kind: "shortcuts" }) },
     ],
-    [navigate, project],
+    [navigate, project, newItem],
   );
 
   // Global keys. ⌘K works everywhere; the rest only when not typing and no dialog is open.
@@ -181,7 +225,7 @@ export function App() {
         k: () => move(-1),
         c: () => selected && copyVar(selected.key),
         e: () => selected && setModal({ kind: "var", editing: selected }),
-        n: () => setModal({ kind: "var", editing: null }),
+        n: () => (view.kind === "items" ? newItem(view.type ?? "login") : setModal({ kind: "var", editing: null })),
         "?": () => setModal({ kind: "shortcuts" }),
         Enter: () => {
           if (!selected || (document.activeElement && document.activeElement.matches("button, a"))) return;
@@ -196,7 +240,7 @@ export function App() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [status, modal, listShown, shown, selectedKey, selected, wide, copyVar, openVar]);
+  }, [status, modal, listShown, shown, selectedKey, selected, wide, copyVar, openVar, view, newItem]);
 
   const closeModal = useCallback(() => setModal(null), []);
 
@@ -210,6 +254,8 @@ export function App() {
       view={view}
       total={vars?.length ?? 0}
       projects={projects}
+      items={items ?? []}
+      onNewItem={() => newItem(view.kind === "items" ? view.type ?? "login" : "login")}
       onNavigate={navigate}
       onPalette={() => setModal({ kind: "palette" })}
       onNewProject={() => setModal({ kind: "project", editing: null })}
@@ -224,7 +270,13 @@ export function App() {
     onCopy: (value: string) => copy(value, v.key, true),
     onEdit: () => setModal({ kind: "var", editing: v }),
     onDelete: () => setModal({ kind: "delete", key: v.key }),
+    sources: projects.flatMap((p) => p.services.filter((sv) => sv.var_keys.includes(v.key) && v.projects.includes(p.name)).map((service) => ({ project: p.name, service }))),
+    onRestored: refreshAll,
+    onUnauthorized: () => setStatus("locked"),
   });
+
+  const branchSwitch = project ? <BranchSwitch project={project} branchId={branch?.id ?? null} onChange={setBranchId} /> : undefined;
+  const detailItem = modal?.kind === "itemDetail" ? items?.find((it) => it.id === modal.id) : undefined;
 
   const detailVar = modal?.kind === "detail" ? vars?.find((v) => v.key === modal.key) : undefined;
 
@@ -253,14 +305,46 @@ export function App() {
       <main className="main">
         {view.kind === "settings" ? (
           <SettingsPage />
+        ) : view.kind === "items" ? (
+          <ItemsPage
+            items={items}
+            loadError={loadError}
+            onRetry={() => guard(refreshAll)}
+            type={view.type}
+            onType={(type) => setView({ kind: "items", type })}
+            onNew={(type) => newItem(type)}
+            onOpen={(id) => setModal({ kind: "itemDetail", id })}
+            onCopy={copyItem}
+          />
         ) : project && tab === "overview" ? (
           <ProjectOverview
             project={project}
             tabs={projectTabs}
             guard={guard}
+            items={(items ?? []).filter((it) => it.project_id === project.id)}
             onEdit={() => setModal({ kind: "project", editing: project })}
             onDelete={() => setModal({ kind: "deleteProject", project })}
             onChanged={refreshAll}
+            onNewVar={() => setModal({ kind: "var", editing: null })}
+            onOpenVar={openProjectVar}
+            onOpenItem={(id) => setModal({ kind: "itemDetail", id })}
+            onNewItem={() => newItem("login", project.id)}
+            onTab={setTab}
+            onUsage={() => setModal({ kind: "usage" })}
+          />
+        ) : project && tab === "vars" && branch ? (
+          <BranchVarsView
+            project={project}
+            branchId={branch.id}
+            vars={vars ?? []}
+            tabs={projectTabs}
+            branchSwitch={branchSwitch}
+            guard={guard}
+            onChanged={refreshAll}
+            onEditDefault={(key) => {
+              const v = vars?.find((x) => x.key === key);
+              if (v) setModal({ kind: "var", editing: v });
+            }}
           />
         ) : project && tab === "branches" ? (
           <ProjectBranches project={project} tabs={projectTabs} guard={guard} onChanged={refreshAll} />
@@ -285,6 +369,7 @@ export function App() {
             onNewProject={() => setModal({ kind: "project", editing: null })}
             searchRef={searchRef}
             tabs={projectTabs}
+            toolbarExtra={branchSwitch}
           />
         )}
       </main>
@@ -380,12 +465,59 @@ export function App() {
         <CommandPalette
           vars={vars ?? []}
           projects={projects}
+          items={items ?? []}
           actions={actions}
           onOpenVar={jumpToVar}
           onOpenProject={(name) => navigate({ kind: "vault", project: name })}
           onCopyVar={copyVar}
+          onOpenItem={(id) => setModal({ kind: "itemDetail", id })}
+          onCopyItem={copyItem}
           onClose={closeModal}
         />
+      )}
+      {modal?.kind === "item" && (
+        <ItemDialog
+          editing={modal.editing}
+          initialType={modal.type}
+          initialProjectId={modal.projectId}
+          projects={projects}
+          onClose={closeModal}
+          onSaved={async (id) => {
+            await refreshAll();
+            setModal({ kind: "itemDetail", id });
+          }}
+        />
+      )}
+      {detailItem && (
+        <ItemDetailDialog
+          item={detailItem}
+          onClose={closeModal}
+          onEdit={() => setModal({ kind: "item", editing: detailItem })}
+          onDelete={() => setModal({ kind: "deleteItem", item: detailItem })}
+          onOpenProject={(name) => {
+            navigate({ kind: "vault", project: name });
+            setTab("overview");
+          }}
+          onRestored={refreshAll}
+          onUnauthorized={() => setStatus("locked")}
+        />
+      )}
+      {modal?.kind === "deleteItem" && (
+        <ConfirmDialog
+          title={<>Delete {modal.item.title}?</>}
+          confirmLabel={`Delete ${ITEM_LABELS[modal.item.type].one.toLowerCase()}`}
+          onClose={closeModal}
+          onConfirm={() =>
+            guard(async () => {
+              await api.deleteItem(modal.item.id);
+              setModal(null);
+              toast(`Deleted ${modal.item.title}`);
+              await refreshAll();
+            })
+          }
+        >
+          Its {ITEM_LABELS[modal.item.type].value.toLowerCase()} and its history are deleted. This can’t be undone.
+        </ConfirmDialog>
       )}
       {modal?.kind === "shortcuts" && <ShortcutSheet onClose={closeModal} />}
     </div>
