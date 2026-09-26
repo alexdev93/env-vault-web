@@ -7,14 +7,21 @@ through `/api/*` only (`src/api.ts`). Both are combined and deployed from the
 private `env-vault` repo, where this repo is the `web/` submodule.
 
 ```text
-src/api.ts           typed API client (same-origin fetch)
-src/App.tsx          app shell: session, search, project filter, variable list
-src/components/      Login, VarRow, VarModal, ProjectModal, UsageModal, Modal, LoadingButton
-src/toast.tsx        toast notifications + copyText helper
-src/icons.tsx        inline SVG icons
-src/styles.css       all styles
-vite.config.ts       dev server + proxy to the Worker
+src/lib/          api client, settings (localStorage), clipboard, formatting
+src/ui/           reusable pieces: Button, Dialog, ConfirmDialog, SecretField, Seg,
+                  Tag, Field, CodeBlock, EmptyState, Toast, Icon
+src/features/     screens: Unlock, Sidebar, VaultList, VarDetail, VarDialog,
+                  ProjectDialog, UsageDialog, CommandPalette, SettingsPage, BottomNav
+src/App.tsx       app shell: layout by width, selection, keyboard shortcuts
+src/styles/       tokens.css (light/dark themes) + app.css
+public/fonts/     self-hosted JetBrains Mono woff2 (400/600/800, latin, OFL)
+vite.config.ts    dev server + proxy to the Worker
 ```
+
+The UI has a terminal look: JetBrains Mono everywhere, one phosphor-green
+accent, 2px radius, 1px hairlines, `[VAR]`-style labels. Light and dark themes follow the system setting,
+with an override in Settings. Values are never in the list response: the
+dashboard fetches one value per reveal or copy (`GET /api/vars/:key/value`).
 
 ## Commands
 

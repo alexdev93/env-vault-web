@@ -1,0 +1,72 @@
+/* Terminal tokens: JetBrains Mono everywhere, one phosphor-green accent,
+   2px radius, 1px hairlines. Light ("paper") is the default; dark applies with
+   [data-theme="dark"] or, when no theme is forced, from the system setting. */
+
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/jetbrains-mono-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 800; font-display: swap; src: url("/fonts/jetbrains-mono-latin-800-normal.woff2") format("woff2"); }
+
+:root {
+  color-scheme: light;
+  --bg: #f3f5f0; --surface: #e9ede5; --text: #122012; --text-muted: #4d5f4d;
+  --accent: #0f7a3d; --accent-hover: #0b6632; --accent-press: #084d26;
+  --accent-text: #0b6632; --tint: #dff2e5; --tint-text: #0b4d27;
+  --neutral-tint: #eaeee6; --neutral-tint-text: #2f3d2f;
+  --neutral-200: #dde3d8; --neutral-300: #c3ccbe;
+  --danger: #b3261e; --danger-tint: #fbe6e3; --danger-text: #8c1d17;
+  --divider: color-mix(in srgb, #122012 28%, transparent);
+  --divider-soft: color-mix(in srgb, #122012 12%, transparent);
+  --scrim: color-mix(in srgb, #122012 45%, transparent);
+  --action: #0f7a3d; --action-hover: #0b6632; --on-action: #ffffff;
+  --code-bg: #0c0f0c; --code-text: #d6e5d6; --code-muted: #8ea58e; --code-accent: #3ddc84;
+  --glow: none;
+
+  --font: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --mono: var(--font);
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s6: 24px; --s8: 32px; --s12: 48px;
+  --radius: 2px;
+  --shadow-lg: 0 16px 40px color-mix(in srgb, #000 30%, transparent);
+  --dur-fast: 120ms; --dur: 180ms; --ease: cubic-bezier(.2, .8, .2, 1);
+  --target: 44px;
+  --sidebar-w: 248px; --detail-w: 420px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0c0f0c; --surface: #111611; --text: #d6e5d6; --text-muted: #8ea58e;
+  --accent: #3ddc84; --accent-hover: #6ae8a2; --accent-press: #2bb56a;
+  --accent-text: #3ddc84; --tint: #12261a; --tint-text: #7ff0b0;
+  --neutral-tint: #151b15; --neutral-tint-text: #b9ccb9;
+  --neutral-200: #1a221a; --neutral-300: #2a352a;
+  --danger: #ff6b5e; --danger-tint: #2a1210; --danger-text: #ffb4ab;
+  --divider: color-mix(in srgb, #d6e5d6 22%, transparent);
+  --divider-soft: color-mix(in srgb, #d6e5d6 10%, transparent);
+  --scrim: color-mix(in srgb, #000 70%, transparent);
+  --action: #3ddc84; --action-hover: #6ae8a2; --on-action: #0c0f0c;
+  --code-bg: #060806; --code-text: #d6e5d6; --code-muted: #8ea58e; --code-accent: #3ddc84;
+  --glow: 0 0 12px color-mix(in srgb, #3ddc84 35%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0c0f0c; --surface: #111611; --text: #d6e5d6; --text-muted: #8ea58e;
+    --accent: #3ddc84; --accent-hover: #6ae8a2; --accent-press: #2bb56a;
+    --accent-text: #3ddc84; --tint: #12261a; --tint-text: #7ff0b0;
+    --neutral-tint: #151b15; --neutral-tint-text: #b9ccb9;
+    --neutral-200: #1a221a; --neutral-300: #2a352a;
+    --danger: #ff6b5e; --danger-tint: #2a1210; --danger-text: #ffb4ab;
+    --divider: color-mix(in srgb, #d6e5d6 22%, transparent);
+    --divider-soft: color-mix(in srgb, #d6e5d6 10%, transparent);
+    --scrim: color-mix(in srgb, #000 70%, transparent);
+    --action: #3ddc84; --action-hover: #6ae8a2; --on-action: #0c0f0c;
+    --code-bg: #060806; --code-text: #d6e5d6; --code-muted: #8ea58e; --code-accent: #3ddc84;
+    --glow: 0 0 12px color-mix(in srgb, #3ddc84 35%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; animation: none !important; }
+}
+
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; box-shadow: var(--glow); }
