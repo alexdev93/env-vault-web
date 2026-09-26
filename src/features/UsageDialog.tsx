@@ -14,21 +14,29 @@ export const LANGS: [SnippetLang, string][] = [
   ["docker", "Docker"],
 ];
 
-export const SNIPPETS: Record<SnippetLang, (p: string) => string> = {
-  node: (p) => `envvault run ${p} -- node server.js\nenvvault run ${p} -- npm run dev`,
-  python: (p) => `envvault run ${p} -- python manage.py runserver\nenvvault run ${p} -- uvicorn app.main:app --reload`,
-  spring: (p) => `envvault run ${p} -- ./mvnw spring-boot:run\nenvvault run ${p} -- java -jar target/app.jar`,
-  docker: (p) => `# Dockerfile\nRUN curl -fsS ${location.origin}/install.sh | sh\nCMD ["envvault", "run", "${p}", "--", "node", "server.js"]`,
+// `b` is a branch name, or "" for the project's defaults.
+export const SNIPPETS: Record<SnippetLang, (p: string, b: string) => string> = {
+  node: (p, b) => `envvault run ${p}${flag(b)} -- node server.js\nenvvault run ${p}${flag(b)} -- npm run dev`,
+  python: (p, b) => `envvault run ${p}${flag(b)} -- python manage.py runserver\nenvvault run ${p}${flag(b)} -- uvicorn app.main:app --reload`,
+  spring: (p, b) => `envvault run ${p}${flag(b)} -- ./mvnw spring-boot:run\nenvvault run ${p}${flag(b)} -- java -jar target/app.jar`,
+  docker: (p, b) =>
+    `# Dockerfile\nRUN curl -fsS ${location.origin}/install.sh | sh\nCMD ["envvault", "run", "${p}", ${b ? `"-b", "${b}", ` : ""}"--", "node", "server.js"]`,
 };
+
+function flag(branch: string): string {
+  return branch ? ` -b ${branch}` : "";
+}
 
 export function UsageDialog({ projects, initialProject, onClose }: { projects: Project[]; initialProject?: string | null; onClose: () => void }) {
   const [settings] = useSettings();
   const copy = useCopy();
   const [project, setProject] = useState(initialProject ?? projects[0]?.name ?? "your-project");
   const [lang, setLang] = useState<SnippetLang>(settings.snippetLang);
+  const [branch, setBranch] = useState("");
+  const branches = projects.find((p) => p.name === project)?.branches ?? [];
 
   const install = `# once per machine, container or CI runner\ncurl -fsS ${location.origin}/install.sh | sh\nenvvault login   # paste this vault's URL and your API token`;
-  const snippet = SNIPPETS[lang](project || "your-project");
+  const snippet = SNIPPETS[lang](project || "your-project", branches.some((b) => b.name === branch) ? branch : "");
 
   return (
     <Dialog eyebrow="Use in your app" title="Run your app with this vault" onClose={onClose} width={680}>
@@ -57,13 +65,26 @@ export function UsageDialog({ projects, initialProject, onClose }: { projects: P
           <div className="row-wrap">
             <label className="sort">
               <span className="muted">Project</span>
-              <select className="select mono" value={project} onChange={(e) => setProject(e.target.value)}>
+              <select className="select mono" value={project} onChange={(e) => (setProject(e.target.value), setBranch(""))}>
                 {projects.length ? projects.map((p) => <option key={p.id} value={p.name}>{p.name}</option>) : <option value="your-project">your-project</option>}
               </select>
             </label>
+            {branches.length > 0 && (
+              <label className="sort">
+                <span className="muted">Branch</span>
+                <select className="select mono" value={branch} onChange={(e) => setBranch(e.target.value)}>
+                  <option value="">defaults (no -b)</option>
+                  {branches.map((b) => <option key={b.id} value={b.name}>{b.name}</option>)}
+                </select>
+              </label>
+            )}
             <Seg label="Language" size="sm" value={lang} onChange={setLang} options={LANGS} />
           </div>
           <CodeBlock tone="dark" code={snippet} onCopy={(c) => copy(c, "command")} />
+          <p className="field-hint">
+            In CI, pick values by the branch being built, e.g. GitHub Actions:{" "}
+            <code className="mono">envvault run {project || "your-project"} -b "{"${{ github.ref_name }}"}" -- node server.js</code>
+          </p>
         </section>
       </div>
     </Dialog>

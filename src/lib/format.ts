@@ -24,3 +24,18 @@ export function projectColor(name: string): string {
 }
 
 export const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export const PROJECT_RE = /^[a-z0-9][a-z0-9-]*$/;
+export const BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/;
+
+// Links typed without a scheme ("console.neon.tech") still open as https.
+export function hrefFor(url: string): string {
+  return /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`;
+}
+
+// Suggestions for service fields; anything else can be typed.
+export const SERVICE_KINDS = ["database", "hosting", "auth", "email", "storage", "domain", "dns", "cdn", "payments", "monitoring", "analytics", "ci", "queue", "cache"];
+export const SERVICE_PROVIDERS = [
+  "neon", "supabase", "planetscale", "turso", "mongodb atlas", "upstash", "redis cloud",
+  "cloudflare", "vercel", "netlify", "fly.io", "render", "railway", "heroku", "aws", "gcp", "azure", "digitalocean",
+  "github", "gitlab", "resend", "sendgrid", "postmark", "stripe", "clerk", "auth0", "firebase", "sentry", "namecheap",
+];

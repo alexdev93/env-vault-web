@@ -11,7 +11,9 @@ src/lib/          api client, settings (localStorage), clipboard, formatting
 src/ui/           reusable pieces: Button, Dialog, ConfirmDialog, SecretField, Seg,
                   Tag, Field, CodeBlock, EmptyState, Toast, Icon
 src/features/     screens: Unlock, Sidebar, VaultList, VarDetail, VarDialog,
-                  ProjectDialog, UsageDialog, CommandPalette, SettingsPage, BottomNav
+                  ProjectDialog, UsageDialog, CommandPalette, SettingsPage, BottomNav,
+                  ProjectPages (a project's Overview + Branches tabs), ServiceDialog,
+                  ServiceFields, BranchDialog, BranchVarDialog
 src/App.tsx       app shell: layout by width, selection, keyboard shortcuts
 src/styles/       tokens.css (light/dark themes) + app.css
 public/fonts/     self-hosted JetBrains Mono woff2 (400/600/800, latin, OFL)
@@ -20,7 +22,12 @@ vite.config.ts    dev server + proxy to the Worker
 
 The UI has a terminal look: JetBrains Mono everywhere, one phosphor-green
 accent, 2px radius, 1px hairlines, `[VAR]`-style labels. Light and dark themes follow the system setting,
-with an override in Settings. Values are never in the list response: the
+with an override in Settings. A project page has three tabs: **Variables** (the list), **Overview**
+(links, notes, services such as the database or hosting and the account you
+sign in with, edit/delete) and **Branches** (per-branch values that override
+the defaults, used with `envvault run <project> -b <branch>`). Everything —
+projects, variables, services, branches, branch values — can be created,
+edited (including renames) and deleted, and carries notes. Values are never in the list response: the
 dashboard fetches one value per reveal or copy (`GET /api/vars/:key/value`).
 
 ## Commands

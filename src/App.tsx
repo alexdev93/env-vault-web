@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, UnauthorizedError, type Var } from "./lib/api";
+import { api, UnauthorizedError, type Project, type Var } from "./lib/api";
 import { DESKTOP, PHONE, useMediaQuery, WIDE } from "./lib/useMediaQuery";
 import { BottomNav } from "./features/BottomNav";
 import { CommandPalette, type Command } from "./features/CommandPalette";
 import { ProjectDialog } from "./features/ProjectDialog";
+import { ProjectBranches, ProjectOverview, ProjectTabs, type ProjectTab } from "./features/ProjectPages";
 import { SettingsPage } from "./features/SettingsPage";
 import { ShortcutSheet } from "./features/ShortcutSheet";
 import { Sidebar, type View } from "./features/Sidebar";
@@ -21,7 +22,8 @@ import { useToast } from "./ui/Toast";
 type Status = "booting" | "locked" | "app";
 type Modal =
   | { kind: "var"; editing: Var | null }
-  | { kind: "project" }
+  | { kind: "project"; editing: Project | null }
+  | { kind: "deleteProject"; project: Project }
   | { kind: "usage" }
   | { kind: "detail"; key: string }
   | { kind: "delete"; key: string }
@@ -41,9 +43,10 @@ export function App() {
 
   const [status, setStatus] = useState<Status>("booting");
   const [vars, setVars] = useState<Var[] | null>(null); // null = loading (skeleton)
-  const [projects, setProjects] = useState<Awaited<ReturnType<typeof api.listProjects>>>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [view, setView] = useState<View>({ kind: "vault", project: null });
+  const [tab, setTab] = useState<ProjectTab>("vars");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("changed");
@@ -88,6 +91,8 @@ export function App() {
   }, [enterApp]);
 
   const project = view.kind === "vault" && view.project ? projects.find((p) => p.name === view.project) ?? null : null;
+  // The variable list is on screen: "All items", or a project's Variables tab.
+  const listShown = view.kind === "vault" && (!project || tab === "vars");
   const shown = useMemo(
     () => (vars ? applyListState(vars, view.kind === "vault" ? view.project : null, filter, query, sort) : []),
     [vars, view, filter, query, sort],
@@ -96,8 +101,8 @@ export function App() {
 
   // With a detail pane on screen, keep something selected.
   useEffect(() => {
-    if (wide && shown.length && !shown.some((v) => v.key === selectedKey)) setSelectedKey(shown[0].key);
-  }, [wide, shown, selectedKey]);
+    if (wide && listShown && shown.length && !shown.some((v) => v.key === selectedKey)) setSelectedKey(shown[0].key);
+  }, [wide, listShown, shown, selectedKey]);
 
   const openVar = useCallback(
     (key: string) => {
@@ -111,6 +116,7 @@ export function App() {
   const jumpToVar = useCallback(
     (key: string) => {
       setView({ kind: "vault", project: null });
+      setTab("vars");
       setQuery("");
       setFilter("all");
       openVar(key);
@@ -122,6 +128,7 @@ export function App() {
 
   const navigate = useCallback((v: View) => {
     setView(v);
+    setTab("vars");
     setModal(null);
   }, []);
 
@@ -136,12 +143,19 @@ export function App() {
   const actions = useMemo<Command[]>(
     () => [
       { id: "new-var", group: "Actions", code: "NEW", label: "New variable", hint: "N", run: () => setModal({ kind: "var", editing: null }) },
-      { id: "new-proj", group: "Actions", code: "NEW", label: "New project", run: () => setModal({ kind: "project" }) },
+      { id: "new-proj", group: "Actions", code: "NEW", label: "New project", run: () => setModal({ kind: "project", editing: null }) },
+      ...(project
+        ? ([
+            { id: "edit-proj", group: "Actions", code: "EDIT", label: `Edit ${project.name}`, run: () => setModal({ kind: "project", editing: project }) },
+            { id: "proj-overview", group: "Actions", code: "GO", label: `${project.name} overview`, run: () => setTab("overview") },
+            { id: "proj-branches", group: "Actions", code: "GO", label: `${project.name} branches`, run: () => setTab("branches") },
+          ] satisfies Command[])
+        : []),
       { id: "usage", group: "Actions", code: "GO", label: "Use in your app", run: () => setModal({ kind: "usage" }) },
       { id: "settings", group: "Actions", code: "GO", label: "Go to Settings", run: () => navigate({ kind: "settings" }) },
       { id: "shortcuts", group: "Actions", code: "GO", label: "Keyboard shortcuts", hint: "?", run: () => setModal({ kind: "shortcuts" }) },
     ],
-    [navigate],
+    [navigate, project],
   );
 
   // Global keys. ⌘K works everywhere; the rest only when not typing and no dialog is open.
@@ -154,7 +168,7 @@ export function App() {
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey || modal || isTyping(document.activeElement)) return;
-      const inVault = view.kind === "vault";
+      const inVault = listShown;
       const idx = shown.findIndex((v) => v.key === selectedKey);
       const move = (d: number) => {
         if (!shown.length) return;
@@ -182,12 +196,14 @@ export function App() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [status, modal, view, shown, selectedKey, selected, wide, copyVar, openVar]);
+  }, [status, modal, listShown, shown, selectedKey, selected, wide, copyVar, openVar]);
 
   const closeModal = useCallback(() => setModal(null), []);
 
   if (status === "booting") return null;
   if (status === "locked") return <Unlock onUnlocked={enterApp} />;
+
+  const projectTabs = project ? <ProjectTabs project={project} tab={tab} onTab={setTab} /> : undefined;
 
   const sidebar = (
     <Sidebar
@@ -196,7 +212,7 @@ export function App() {
       projects={projects}
       onNavigate={navigate}
       onPalette={() => setModal({ kind: "palette" })}
-      onNewProject={() => setModal({ kind: "project" })}
+      onNewProject={() => setModal({ kind: "project", editing: null })}
       onUsage={() => setModal({ kind: "usage" })}
       onLogout={lock}
     />
@@ -213,7 +229,7 @@ export function App() {
   const detailVar = modal?.kind === "detail" ? vars?.find((v) => v.key === modal.key) : undefined;
 
   return (
-    <div className={"shell" + (wide && view.kind === "vault" ? " with-detail" : "")}>
+    <div className={"shell" + (wide && listShown ? " with-detail" : "")}>
       {desktop ? (
         sidebar
       ) : (
@@ -237,6 +253,17 @@ export function App() {
       <main className="main">
         {view.kind === "settings" ? (
           <SettingsPage />
+        ) : project && tab === "overview" ? (
+          <ProjectOverview
+            project={project}
+            tabs={projectTabs}
+            guard={guard}
+            onEdit={() => setModal({ kind: "project", editing: project })}
+            onDelete={() => setModal({ kind: "deleteProject", project })}
+            onChanged={refreshAll}
+          />
+        ) : project && tab === "branches" ? (
+          <ProjectBranches project={project} tabs={projectTabs} guard={guard} onChanged={refreshAll} />
         ) : (
           <VaultList
             vars={vars}
@@ -255,13 +282,14 @@ export function App() {
             onOpen={openVar}
             onCopy={copyVar}
             onNew={() => setModal({ kind: "var", editing: null })}
-            onNewProject={() => setModal({ kind: "project" })}
+            onNewProject={() => setModal({ kind: "project", editing: null })}
             searchRef={searchRef}
+            tabs={projectTabs}
           />
         )}
       </main>
 
-      {wide && view.kind === "vault" && (selected ? <DetailPane {...detailProps(selected)} /> : <EmptyDetail />)}
+      {wide && listShown && (selected ? <DetailPane {...detailProps(selected)} /> : <EmptyDetail />)}
 
       {phone && (
         <BottomNav
@@ -294,12 +322,33 @@ export function App() {
       )}
       {modal?.kind === "project" && (
         <ProjectDialog
+          editing={modal.editing}
           onClose={closeModal}
           onSaved={async (name) => {
             await refreshAll();
             setView({ kind: "vault", project: name });
+            if (!modal.editing) setTab("vars");
           }}
         />
+      )}
+      {modal?.kind === "deleteProject" && (
+        <ConfirmDialog
+          title={<>Delete <span className="mono break">{modal.project.name}</span>?</>}
+          confirmLabel="Delete project"
+          onClose={closeModal}
+          onConfirm={() =>
+            guard(async () => {
+              await api.deleteProject(modal.project.id);
+              toast(`Deleted ${modal.project.name}`);
+              navigate({ kind: "vault", project: null });
+              await refreshAll();
+            })
+          }
+        >
+          Its {modal.project.services.length} services and {modal.project.branches.length} branches (with their values) are deleted, and{" "}
+          <span className="mono">envvault run {modal.project.name}</span> stops working. Its {modal.project.keys.length} variables stay in the
+          vault. This can’t be undone.
+        </ConfirmDialog>
       )}
       {modal?.kind === "usage" && <UsageDialog projects={projects} initialProject={project?.name} onClose={closeModal} />}
       {modal?.kind === "delete" && (

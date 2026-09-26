@@ -23,6 +23,7 @@ export function VarDialog({ editing, projects, defaultProject, onClose, onSaved 
   const [checked, setChecked] = useState<Set<string>>(
     () => new Set(projects.filter((p) => (editing ? editing.projects.includes(p.name) : p.name === defaultProject)).map((p) => p.id)),
   );
+  const [notes, setNotes] = useState(editing?.notes ?? "");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -52,7 +53,8 @@ export function VarDialog({ editing, projects, defaultProject, onClose, onSaved 
       return;
     }
     try {
-      await api.saveVar(k, value ?? "", [...checked]);
+      if (editing) await api.updateVar(editing.key, { key: k, value: value ?? "", notes, projects: [...checked] });
+      else await api.saveVar(k, value ?? "", [...checked], notes);
       onClose();
       toast(`Saved ${k}`);
       await onSaved(k);
@@ -79,7 +81,11 @@ export function VarDialog({ editing, projects, defaultProject, onClose, onSaved 
       }
     >
       <form id="var-form" className="form" onSubmit={(e) => e.preventDefault()}>
-        <Field label="Key" htmlFor="var-key" hint={editing ? "Renaming comes in a later update." : "Letters, numbers and underscores."}>
+        <Field
+          label="Key"
+          htmlFor="var-key"
+          hint={editing && key.trim() !== editing.key ? "Renaming: projects and branch overrides move to the new key, so apps must read the new name." : "Letters, numbers and underscores."}
+        >
           <input
             id="var-key"
             className="input input-lg mono"
@@ -87,7 +93,6 @@ export function VarDialog({ editing, projects, defaultProject, onClose, onSaved 
             autoComplete="off"
             spellCheck={false}
             autoFocus={!editing}
-            disabled={!!editing}
             value={key}
             onChange={(e) => setKey(e.target.value)}
           />
@@ -105,6 +110,9 @@ export function VarDialog({ editing, projects, defaultProject, onClose, onSaved 
             value={value ?? ""}
             onChange={(e) => setValue(e.target.value)}
           />
+        </Field>
+        <Field label="Notes" htmlFor="var-notes" hint="Where it comes from, when to rotate it. Plain text, not encrypted.">
+          <textarea id="var-notes" className="input" rows={2} placeholder="Neon → my-api → Connection string (pooled)" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
         <fieldset className="field">
           <legend className="field-label">Used by which projects?</legend>

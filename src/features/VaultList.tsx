@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import type { Project, Var } from "../lib/api";
 import { longDate, shortAge } from "../lib/format";
 import { Button } from "../ui/Button";
@@ -17,12 +17,13 @@ export function applyListState(vars: Var[], project: string | null, filter: Filt
     if (project && !v.projects.includes(project)) return false;
     if (filter === "shared" && !v.shared) return false;
     if (filter === "untagged" && v.projects.length > 0) return false;
-    return !q || v.key.toLowerCase().includes(q) || v.projects.some((p) => p.toLowerCase().includes(q));
+    return !q || v.key.toLowerCase().includes(q) || v.notes.toLowerCase().includes(q) || v.projects.some((p) => p.toLowerCase().includes(q));
   });
   return sort === "name" ? out.sort((a, b) => a.key.localeCompare(b.key)) : out.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }
 
 export function metaLine(v: Var): string {
+  if (v.notes) return v.notes.split("\n")[0];
   if (v.projects.length === 0) return "Personal · not used by a project";
   if (v.shared) return `Shared by ${v.projects.length} projects`;
   return `Used by ${v.projects[0]}`;
@@ -47,6 +48,8 @@ interface Props {
   onNew: () => void;
   onNewProject: () => void;
   searchRef: RefObject<HTMLInputElement | null>;
+  /** Project section tabs, shown under the heading on a project page. */
+  tabs?: ReactNode;
 }
 
 export function VaultList(p: Props) {
@@ -73,6 +76,7 @@ export function VaultList(p: Props) {
           New variable
         </Button>
       </header>
+      {p.tabs}
 
       <div className="list-toolbar">
         <div className="search">
@@ -81,7 +85,7 @@ export function VaultList(p: Props) {
             ref={p.searchRef}
             className="input"
             type="search"
-            aria-label="Filter by key or project"
+            aria-label="Filter by key, notes or project"
             placeholder="filter keys…"
             value={p.query}
             onChange={(e) => p.onQuery(e.target.value)}
@@ -167,7 +171,7 @@ export function VaultList(p: Props) {
               )
             }
           >
-            {p.query ? "Search looks at key names and project names, never values." : p.project ? "No variables in this project match this filter." : "No variables match this filter."}
+            {p.query ? "Search looks at key names, notes and project names, never values." : p.project ? "No variables in this project match this filter." : "No variables match this filter."}
           </EmptyState>
         )}
       </div>

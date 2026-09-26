@@ -38,6 +38,10 @@ function Body({ v, fetchValue, onCopy }: Props) {
           on their next run.
         </div>
       )}
+      <div>
+        <div className="detail-label">Notes</div>
+        {v.notes ? <p className="notes-text">{v.notes}</p> : <p className="muted small">No notes. Edit to add where it comes from or when to rotate it.</p>}
+      </div>
       <dl className="details">
         <dt>Projects</dt>
         <dd className="tag-row">{v.projects.length ? v.projects.map((p) => <Tag key={p} mono>{p}</Tag>) : "Personal (no project)"}</dd>
