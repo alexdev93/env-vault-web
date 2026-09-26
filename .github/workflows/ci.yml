@@ -1,0 +1,28 @@
+name: CI
+
+# Typecheck and build the dashboard. This repo never deploys: production is
+# deployed only from the env-vault root repo, which combines this dashboard with
+# the backend and runs the full smoke test first.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck + build
+        run: npm run build
