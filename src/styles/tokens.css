@@ -13,6 +13,8 @@
   --accent-text: #0b6632; --tint: #dff2e5; --tint-text: #0b4d27;
   --neutral-tint: #eaeee6; --neutral-tint-text: #2f3d2f;
   --neutral-200: #dde3d8; --neutral-300: #c3ccbe;
+  /* Charts: one series in the accent, context in a gray validated for >=3:1 on --bg (dataviz validator). */
+  --chart-accent: #0f7a3d; --chart-muted: #7d8d7a;
   --danger: #b3261e; --danger-tint: #fbe6e3; --danger-text: #8c1d17;
   --divider: color-mix(in srgb, #122012 28%, transparent);
   --divider-soft: color-mix(in srgb, #122012 12%, transparent);
@@ -37,7 +39,7 @@
   --accent: #3ddc84; --accent-hover: #6ae8a2; --accent-press: #2bb56a;
   --accent-text: #3ddc84; --tint: #12261a; --tint-text: #7ff0b0;
   --neutral-tint: #151b15; --neutral-tint-text: #b9ccb9;
-  --neutral-200: #1a221a; --neutral-300: #2a352a;
+  --neutral-200: #1a221a; --neutral-300: #2a352a; --chart-accent: #3ddc84; --chart-muted: #6b806b;
   --danger: #ff6b5e; --danger-tint: #2a1210; --danger-text: #ffb4ab;
   --divider: color-mix(in srgb, #d6e5d6 22%, transparent);
   --divider-soft: color-mix(in srgb, #d6e5d6 10%, transparent);
@@ -54,7 +56,7 @@
     --accent: #3ddc84; --accent-hover: #6ae8a2; --accent-press: #2bb56a;
     --accent-text: #3ddc84; --tint: #12261a; --tint-text: #7ff0b0;
     --neutral-tint: #151b15; --neutral-tint-text: #b9ccb9;
-    --neutral-200: #1a221a; --neutral-300: #2a352a;
+    --neutral-200: #1a221a; --neutral-300: #2a352a; --chart-accent: #3ddc84; --chart-muted: #6b806b;
     --danger: #ff6b5e; --danger-tint: #2a1210; --danger-text: #ffb4ab;
     --divider: color-mix(in srgb, #d6e5d6 22%, transparent);
     --divider-soft: color-mix(in srgb, #d6e5d6 10%, transparent);

@@ -102,6 +102,79 @@ export interface HistoryEntry {
   created_at: string;
 }
 
+export type AccessKind = "env_pull" | "value_read" | "token_read" | "write" | "login" | "login_failed" | "auth_failed" | "api_read";
+
+/** One access-log row: who pulled, read or changed what, from where. Never holds a secret. */
+export interface AccessEvent {
+  id: number;
+  at: string;
+  kind: AccessKind;
+  method: string;
+  path: string;
+  status: number;
+  auth: "bearer" | "session" | "none";
+  project: string;
+  branch: string;
+  target: string;
+  vars_count: number | null;
+  /** The caller's best name: its ENV_VAULT_CLIENT, else hostname, else IP. */
+  who: string;
+  client: string;
+  host: string;
+  ci: string;
+  command: string;
+  ip: string;
+  country: string;
+  city: string;
+  as_org: string;
+  colo: string;
+  user_agent: string;
+}
+
+export interface ActivitySummary {
+  days: number;
+  from: string;
+  project: string;
+  totals: { pulls: number; pulls_24h: number; reads: number; writes: number; failures: number; clients: number };
+  daily: { day: string; pulls: number }[];
+  projects: {
+    project: string;
+    last_at: string;
+    last_client: string;
+    last_ip: string;
+    last_country: string;
+    last_ci: string;
+    last_branch: string;
+    last_status: number;
+    pulls: number;
+    pulls_24h: number;
+    clients: number;
+    daily: { day: string; pulls: number }[];
+  }[];
+  clients: {
+    client: string;
+    last_at: string;
+    host: string;
+    ci: string;
+    ip: string;
+    country: string;
+    city: string;
+    as_org: string;
+    user_agent: string;
+    requests: number;
+    pulls: number;
+    projects: string[];
+  }[];
+}
+
+export interface ActivityQuery {
+  project?: string;
+  kind?: AccessKind[];
+  client?: string;
+  before?: number;
+  limit?: number;
+}
+
 /** What a history belongs to: a variable, one branch's value, or a personal item. */
 export const owners = {
   var: (key: string) => `var:${key}`,
@@ -176,6 +249,18 @@ export const api = {
   createItem: (input: ItemInput & { type: ItemType; value: string }) => send<{ ok: true; id: string }>("POST", "/api/items", input),
   updateItem: (id: string, changes: Partial<ItemInput>) => send<{ ok: true; id: string }>("PATCH", `/api/items/${enc(id)}`, changes),
   deleteItem: (id: string) => send("DELETE", `/api/items/${enc(id)}`),
+
+  activitySummary: (days: number, project = "") =>
+    request<ActivitySummary>(`/api/activity/summary?days=${days}&project=${enc(project)}`, { cache: "no-store" }),
+  activity: (q: ActivityQuery = {}) => {
+    const params = new URLSearchParams();
+    if (q.project) params.set("project", q.project);
+    if (q.kind?.length) params.set("kind", q.kind.join(","));
+    if (q.client) params.set("client", q.client);
+    if (q.before) params.set("before", String(q.before));
+    params.set("limit", String(q.limit ?? 50));
+    return request<{ events: AccessEvent[]; next: number | null }>(`/api/activity?${params}`, { cache: "no-store" });
+  },
 
   history: (owner: string) => request<HistoryEntry[]>(`/api/history?owner=${enc(owner)}`, { cache: "no-store" }),
   getHistoryValue: async (id: number) => (await request<{ value: string }>(`/api/history/${id}/value`, { cache: "no-store" })).value,

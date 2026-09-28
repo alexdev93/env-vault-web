@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, UnauthorizedError, type Item, type ItemType, type Project, type Var } from "./lib/api";
 import { DESKTOP, PHONE, useMediaQuery, WIDE } from "./lib/useMediaQuery";
 import { BottomNav } from "./features/BottomNav";
+import { ActivityPage, ProjectHeartbeat } from "./features/ActivityPage";
 import { BranchSwitch, BranchVarsView } from "./features/BranchView";
 import { ItemDialog, ITEM_LABELS } from "./features/ItemDialog";
 import { ItemDetailDialog, ItemsPage } from "./features/ItemsPage";
@@ -188,6 +189,7 @@ export function App() {
       { id: "new-note", group: "Actions", code: "NEW", label: "New secure note", run: () => newItem("note") },
       { id: "new-secret", group: "Actions", code: "NEW", label: "New secret", run: () => newItem("secret") },
       { id: "personal", group: "Actions", code: "GO", label: "Go to personal vault", run: () => navigate({ kind: "items", type: null }) },
+      { id: "activity", group: "Actions", code: "GO", label: "Go to Activity (who pulled what)", run: () => navigate({ kind: "activity", project: project?.name ?? null }) },
       ...(project
         ? ([
             { id: "edit-proj", group: "Actions", code: "EDIT", label: `Edit ${project.name}`, run: () => setModal({ kind: "project", editing: project }) },
@@ -305,6 +307,17 @@ export function App() {
       <main className="main">
         {view.kind === "settings" ? (
           <SettingsPage />
+        ) : view.kind === "activity" ? (
+          <ActivityPage
+            key={view.project ?? ""}
+            projects={projects}
+            initialProject={view.project}
+            onOpenProject={(name) => {
+              navigate({ kind: "vault", project: name });
+              setTab("overview");
+            }}
+            onUnauthorized={() => setStatus("locked")}
+          />
         ) : view.kind === "items" ? (
           <ItemsPage
             items={items}
@@ -331,6 +344,14 @@ export function App() {
             onNewItem={() => newItem("login", project.id)}
             onTab={setTab}
             onUsage={() => setModal({ kind: "usage" })}
+            heartbeat={
+              <ProjectHeartbeat
+                key={project.id}
+                project={project}
+                onOpenActivity={() => navigate({ kind: "activity", project: project.name })}
+                onUnauthorized={() => setStatus("locked")}
+              />
+            }
           />
         ) : project && tab === "vars" && branch ? (
           <BranchVarsView

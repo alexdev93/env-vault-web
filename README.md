@@ -8,14 +8,16 @@ private `env-vault` repo, where this repo is the `web/` submodule.
 
 ```text
 src/lib/          api client, settings (localStorage), clipboard, formatting
-src/ui/           reusable pieces: Button, Dialog, ConfirmDialog, SecretField, Seg,
+src/ui/           reusable pieces: Button, Dialog, ConfirmDialog, SecretField, Seg, Charts,
                   Tag, Field, CodeBlock, EmptyState, Toast, Icon
 src/features/     screens: Unlock, Sidebar, VaultList, VarDetail, VarDialog,
                   ProjectDialog, UsageDialog, CommandPalette, SettingsPage, BottomNav,
                   ProjectPages (a project's Overview + Branches tabs), ServiceDialog,
                   ServiceFields, BranchDialog, BranchVarDialog, BranchView (a project's
                   variables as one branch sees them), HistoryList, ItemsPage +
-                  ItemDialog (the personal vault: logins, secure notes, secrets)
+                  ItemDialog (the personal vault: logins, secure notes, secrets),
+                  ActivityPage (who pulled what: stat tiles, pulls per day,
+                  heartbeat per project, clients, event log) + ProjectHeartbeat
 src/App.tsx       app shell: layout by width, selection, keyboard shortcuts
 src/styles/       tokens.css (light/dark themes) + app.css
 public/fonts/     self-hosted JetBrains Mono woff2 (400/600/800, latin, OFL)

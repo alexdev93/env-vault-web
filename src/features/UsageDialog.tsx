@@ -82,6 +82,7 @@ export function UsageDialog({ projects, initialProject, onClose }: { projects: P
           </div>
           <CodeBlock tone="dark" code={snippet} onCopy={(c) => copy(c, "command")} />
           <p className="field-hint">
+            Name each server or CI job with <code className="mono">ENV_VAULT_CLIENT=cheat-sheet-prod</code> so the Activity page shows who pulled what.
             In CI, pick values by the branch being built, e.g. GitHub Actions:{" "}
             <code className="mono">envvault run {project || "your-project"} -b "{"${{ github.ref_name }}"}" -- node server.js</code>
           </p>

@@ -3,7 +3,11 @@ import { projectColor } from "../lib/format";
 import { Icon } from "../ui/Icon";
 import { isMac } from "./shortcuts";
 
-export type View = { kind: "vault"; project: string | null } | { kind: "items"; type: ItemType | null } | { kind: "settings" };
+export type View =
+  | { kind: "vault"; project: string | null }
+  | { kind: "items"; type: ItemType | null }
+  | { kind: "activity"; project: string | null }
+  | { kind: "settings" };
 
 interface Props {
   view: View;
@@ -39,6 +43,9 @@ export function Sidebar({ view, total, projects, items, onNewItem, onNavigate, o
         <button type="button" className="nav-item" {...current(isAll)} onClick={() => onNavigate({ kind: "vault", project: null })}>
           <span className="grow">All variables</span>
           <span className="nav-count">{total}</span>
+        </button>
+        <button type="button" className="nav-item" {...current(view.kind === "activity")} onClick={() => onNavigate({ kind: "activity", project: null })}>
+          <span className="grow">Activity</span>
         </button>
       </div>
 

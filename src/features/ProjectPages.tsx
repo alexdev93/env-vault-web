@@ -95,6 +95,8 @@ interface OverviewProps {
   onNewItem: () => void;
   onTab: (t: ProjectTab) => void;
   onUsage: () => void;
+  /** Who pulls this project, shown under the setup checklist. */
+  heartbeat?: ReactNode;
 }
 
 export function ProjectOverview(p: OverviewProps) {
@@ -140,6 +142,8 @@ export function ProjectOverview(p: OverviewProps) {
               </ol>
             </section>
           )}
+
+          {p.heartbeat}
 
           <section className="section">
             <h2 className="section-title">About</h2>
