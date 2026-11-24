@@ -282,7 +282,7 @@ export function ProjectOverview(p: OverviewProps) {
 
           <section className="section">
             <h2 className="section-title">Delete</h2>
-            <p className="muted">Removes the project with its services and branches. Its variables stay in the vault, untagged from it; linked logins and notes stay too.</p>
+            <p className="muted">Removes the project with its variables, services and branches. Linked logins and notes stay.</p>
             <div><Button variant="danger" onClick={p.onDelete}>Delete {project.name}</Button></div>
           </section>
         </div>

@@ -29,8 +29,8 @@ type Modal =
   | { kind: "project"; editing: Project | null }
   | { kind: "deleteProject"; project: Project }
   | { kind: "usage" }
-  | { kind: "detail"; key: string }
-  | { kind: "delete"; key: string }
+  | { kind: "detail"; id: string }
+  | { kind: "delete"; id: string }
   | { kind: "palette" }
   | { kind: "shortcuts" }
   | { kind: "drawer" }
@@ -60,7 +60,8 @@ export function App() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("changed");
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // Variables are addressed by id: the same key can be in several projects.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -115,34 +116,41 @@ export function App() {
     () => (vars ? applyListState(vars, view.kind === "vault" ? view.project : null, filter, query, sort) : []),
     [vars, view, filter, query, sort],
   );
-  const selected = vars?.find((v) => v.key === selectedKey) ?? null;
+  const selected = vars?.find((v) => v.id === selectedId) ?? null;
 
   // With a detail pane on screen, keep something selected.
   useEffect(() => {
-    if (wide && listShown && shown.length && !shown.some((v) => v.key === selectedKey)) setSelectedKey(shown[0].key);
-  }, [wide, listShown, shown, selectedKey]);
+    if (wide && listShown && shown.length && !shown.some((v) => v.id === selectedId)) setSelectedId(shown[0].id);
+  }, [wide, listShown, shown, selectedId]);
 
   const openVar = useCallback(
-    (key: string) => {
-      setSelectedKey(key);
-      if (!wide) setModal({ kind: "detail", key });
+    (id: string) => {
+      setSelectedId(id);
+      if (!wide) setModal({ kind: "detail", id });
     },
     [wide],
   );
 
   // From the palette: make sure the item is visible in the list first.
   const jumpToVar = useCallback(
-    (key: string) => {
+    (id: string) => {
       setView({ kind: "vault", project: null });
       setTab("vars");
       setQuery("");
       setFilter("all");
-      openVar(key);
+      openVar(id);
     },
     [openVar],
   );
 
-  const copyVar = useCallback((key: string) => guard(async () => copy(await api.getValue(key), key, true)), [guard, copy]);
+  const copyVar = useCallback(
+    (id: string) =>
+      guard(async () => {
+        const v = vars?.find((x) => x.id === id);
+        copy(await api.getValue(id), v ? v.key : "value", true);
+      }),
+    [guard, copy, vars],
+  );
   const copyItem = useCallback(
     (id: string) =>
       guard(async () => {
@@ -162,13 +170,15 @@ export function App() {
   // From a project's Overview (a service's variable chip): show it in that project's list.
   const openProjectVar = useCallback(
     (key: string) => {
+      const v = project ? vars?.find((x) => x.key === key && x.project_id === project.id) : undefined;
+      if (!v) return;
       setTab("vars");
       setBranchId(null);
       setQuery("");
       setFilter("all");
-      openVar(key);
+      openVar(v.id);
     },
-    [openVar],
+    [openVar, project, vars],
   );
 
   const newItem = useCallback((type?: ItemType, projectId?: string | null) => setModal({ kind: "item", editing: null, type, projectId }), []);
@@ -215,24 +225,24 @@ export function App() {
       }
       if (e.metaKey || e.ctrlKey || e.altKey || modal || isTyping(document.activeElement)) return;
       const inVault = listShown;
-      const idx = shown.findIndex((v) => v.key === selectedKey);
+      const idx = shown.findIndex((v) => v.id === selectedId);
       const move = (d: number) => {
         if (!shown.length) return;
         const next = shown[Math.max(0, Math.min(shown.length - 1, idx === -1 ? 0 : idx + d))];
-        setSelectedKey(next.key);
+        setSelectedId(next.id);
       };
       const act: Record<string, () => void> = {
         "/": () => searchRef.current?.focus(),
         j: () => move(1),
         k: () => move(-1),
-        c: () => selected && copyVar(selected.key),
+        c: () => selected && copyVar(selected.id),
         e: () => selected && setModal({ kind: "var", editing: selected }),
         n: () => (view.kind === "items" ? newItem(view.type ?? "login") : setModal({ kind: "var", editing: null })),
         "?": () => setModal({ kind: "shortcuts" }),
         Enter: () => {
           if (!selected || (document.activeElement && document.activeElement.matches("button, a"))) return;
           if (wide) document.querySelector<HTMLButtonElement>(".detail-pane .secret-btn")?.focus();
-          else openVar(selected.key);
+          else openVar(selected.id);
         },
       };
       const fn = act[e.key];
@@ -242,7 +252,7 @@ export function App() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [status, modal, listShown, shown, selectedKey, selected, wide, copyVar, openVar, view, newItem]);
+  }, [status, modal, listShown, shown, selectedId, selected, wide, copyVar, openVar, view, newItem]);
 
   const closeModal = useCallback(() => setModal(null), []);
 
@@ -268,11 +278,13 @@ export function App() {
 
   const detailProps = (v: Var) => ({
     v,
-    fetchValue: () => api.getValue(v.key),
+    fetchValue: () => api.getValue(v.id),
     onCopy: (value: string) => copy(value, v.key, true),
     onEdit: () => setModal({ kind: "var", editing: v }),
-    onDelete: () => setModal({ kind: "delete", key: v.key }),
-    sources: projects.flatMap((p) => p.services.filter((sv) => sv.var_keys.includes(v.key) && v.projects.includes(p.name)).map((service) => ({ project: p.name, service }))),
+    onDelete: () => setModal({ kind: "delete", id: v.id }),
+    sources: projects
+      .filter((p) => p.id === v.project_id)
+      .flatMap((p) => p.services.filter((sv) => sv.var_keys.includes(v.key)).map((service) => ({ project: p.name, service }))),
     onRestored: refreshAll,
     onUnauthorized: () => setStatus("locked"),
   });
@@ -280,7 +292,8 @@ export function App() {
   const branchSwitch = project ? <BranchSwitch project={project} branchId={branch?.id ?? null} onChange={setBranchId} /> : undefined;
   const detailItem = modal?.kind === "itemDetail" ? items?.find((it) => it.id === modal.id) : undefined;
 
-  const detailVar = modal?.kind === "detail" ? vars?.find((v) => v.key === modal.key) : undefined;
+  const detailVar = modal?.kind === "detail" ? vars?.find((v) => v.id === modal.id) : undefined;
+  const deletingVar = modal?.kind === "delete" ? vars?.find((v) => v.id === modal.id) : undefined;
 
   return (
     <div className={"shell" + (wide && listShown ? " with-detail" : "")}>
@@ -357,13 +370,13 @@ export function App() {
           <BranchVarsView
             project={project}
             branchId={branch.id}
-            vars={vars ?? []}
+            vars={(vars ?? []).filter((v) => v.project_id === project.id)}
             tabs={projectTabs}
             branchSwitch={branchSwitch}
             guard={guard}
             onChanged={refreshAll}
             onEditDefault={(key) => {
-              const v = vars?.find((x) => x.key === key);
+              const v = vars?.find((x) => x.key === key && x.project_id === project.id);
               if (v) setModal({ kind: "var", editing: v });
             }}
           />
@@ -382,8 +395,8 @@ export function App() {
             onFilter={setFilter}
             sort={sort}
             onSort={setSort}
-            selectedKey={selectedKey}
-            onSelect={setSelectedKey}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
             onOpen={openVar}
             onCopy={copyVar}
             onNew={() => setModal({ kind: "var", editing: null })}
@@ -417,12 +430,13 @@ export function App() {
       {modal?.kind === "var" && (
         <VarDialog
           editing={modal.editing}
+          vars={vars ?? []}
           projects={projects}
           defaultProject={view.kind === "vault" ? view.project : null}
           onClose={closeModal}
-          onSaved={async (key) => {
+          onSaved={async (id) => {
             await refreshAll();
-            setSelectedKey(key);
+            setSelectedId(id);
           }}
         />
       )}
@@ -452,34 +466,31 @@ export function App() {
           }
         >
           Its {modal.project.services.length} services and {modal.project.branches.length} branches (with their values) are deleted, and{" "}
-          <span className="mono">envvault run {modal.project.name}</span> stops working. Its {modal.project.keys.length} variables stay in the
-          vault. This can’t be undone.
+          <span className="mono">envvault run {modal.project.name}</span> stops working. Its {modal.project.keys.length} variables are deleted
+          too (other projects’ variables with the same names aren’t touched). This can’t be undone.
         </ConfirmDialog>
       )}
       {modal?.kind === "usage" && <UsageDialog projects={projects} initialProject={project?.name} onClose={closeModal} />}
-      {modal?.kind === "delete" && (
+      {modal?.kind === "delete" && deletingVar && (
         <ConfirmDialog
-          title={<>Delete <span className="mono break">{modal.key}</span>?</>}
+          title={<>Delete <span className="mono break">{deletingVar.key}</span>?</>}
           confirmLabel="Delete variable"
           onClose={closeModal}
           onConfirm={() =>
             guard(async () => {
-              await api.deleteVar(modal.key);
+              await api.deleteVar(deletingVar.id);
               setModal(null);
-              toast(`Deleted ${modal.key}`);
-              if (selectedKey === modal.key) setSelectedKey(null);
+              toast(`Deleted ${deletingVar.key}`);
+              if (selectedId === deletingVar.id) setSelectedId(null);
               await refreshAll();
             })
           }
         >
-          {(() => {
-            const v = vars?.find((x) => x.key === modal.key);
-            return v && v.projects.length > 0 ? (
-              <>It’s removed from <strong>{v.projects.join(", ")}</strong>, so their next run won’t get it. This can’t be undone yet.</>
-            ) : (
-              <>This can’t be undone yet.</>
-            );
-          })()}
+          {deletingVar.project ? (
+            <>It’s removed from <strong>{deletingVar.project}</strong>, so its next run won’t get it. Other projects keep their own {deletingVar.key}. This can’t be undone yet.</>
+          ) : (
+            <>This can’t be undone yet.</>
+          )}
         </ConfirmDialog>
       )}
       {modal?.kind === "palette" && (

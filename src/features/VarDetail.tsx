@@ -13,7 +13,7 @@ interface Props {
   onCopy: (value: string) => Promise<void> | void;
   onEdit: () => void;
   onDelete: () => void;
-  /** Services (in any project) that provide this variable. */
+  /** Services (in this variable's project) that provide it. */
   sources?: { project: string; service: Service }[];
   /** After a restore from history. */
   onRestored?: () => Promise<void> | void;
@@ -28,29 +28,20 @@ function Body({ v, fetchValue, onCopy, sources = [], onRestored, onUnauthorized 
         <div className="detail-label">Value</div>
         {/* keyed by var: switching items drops any revealed value */}
         <SecretField
-          key={v.key}
+          key={v.id}
           label={v.key}
           fetchValue={fetchValue}
           onCopy={onCopy}
           note={settings.clipboardClear ? `Copied values clear from your clipboard after ${CLIPBOARD_CLEAR_SECONDS}s.` : undefined}
         />
       </div>
-      {v.shared && (
-        <div className="callout">
-          <strong>Used by {v.projects.length} projects.</strong> Saving a change here updates{" "}
-          {v.projects.map((p, i) => (
-            <span key={p}>{i > 0 && (i === v.projects.length - 1 ? " and " : ", ")}<span className="mono">{p}</span></span>
-          ))}{" "}
-          on their next run.
-        </div>
-      )}
       <div>
         <div className="detail-label">Notes</div>
         {v.notes ? <p className="notes-text">{v.notes}</p> : <p className="muted small">No notes. Edit to add where it comes from or when to rotate it.</p>}
       </div>
       <dl className="details">
-        <dt>Projects</dt>
-        <dd className="tag-row">{v.projects.length ? v.projects.map((p) => <Tag key={p} mono>{p}</Tag>) : "Personal (no project)"}</dd>
+        <dt>Project</dt>
+        <dd className="tag-row">{v.project ? <Tag mono>{v.project}</Tag> : "Personal (no project)"}</dd>
         {sources.length > 0 && (
           <>
             <dt>Comes from</dt>
@@ -71,7 +62,7 @@ function Body({ v, fetchValue, onCopy, sources = [], onRestored, onUnauthorized 
         <dt>Changed</dt>
         <dd>{longDate(v.updated_at)}</dd>
       </dl>
-      <HistoryList owner={owners.var(v.key)} label={v.key} version={v.updated_at} onRestored={onRestored} onUnauthorized={onUnauthorized} />
+      <HistoryList owner={owners.var(v.id)} label={v.key} version={v.updated_at} onRestored={onRestored} onUnauthorized={onUnauthorized} />
     </div>
   );
 }
@@ -89,7 +80,7 @@ function Eyebrow({ v }: { v: Var }) {
   return (
     <span className="eyebrow-row">
       <span className="eyebrow accent">Variable</span>
-      {v.shared && <Tag tone="accent">shared · {v.projects.length} projects</Tag>}
+      {v.project && <Tag mono>{v.project}</Tag>}
     </span>
   );
 }

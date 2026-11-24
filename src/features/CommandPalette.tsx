@@ -24,9 +24,9 @@ interface Props {
   actions: Command[];
   onOpenItem: (id: string) => void;
   onCopyItem: (id: string) => void;
-  onOpenVar: (key: string) => void;
+  onOpenVar: (id: string) => void;
   onOpenProject: (name: string) => void;
-  onCopyVar: (key: string) => void;
+  onCopyVar: (id: string) => void;
   onClose: () => void;
 }
 
@@ -41,17 +41,17 @@ export function CommandPalette({ vars, projects, items: personal, actions, onOpe
     const q = query.trim().toLowerCase();
     const hit = (s: string) => !q || s.toLowerCase().includes(q);
     const items: Command[] = vars
-      .filter((v) => hit(v.key) || v.projects.some(hit))
+      .filter((v) => hit(v.key) || (!!v.project && hit(v.project)))
       .slice(0, MAX_ITEMS)
       .map((v) => ({
-        id: `var-${v.key}`,
+        id: `var-${v.id}`,
         group: "Items",
         code: "VAR",
         label: v.key,
         mono: true,
-        hint: v.projects.length ? v.projects.join(", ") : "Personal",
-        run: () => onOpenVar(v.key),
-        copy: () => onCopyVar(v.key),
+        hint: v.project ?? "Personal",
+        run: () => onOpenVar(v.id),
+        copy: () => onCopyVar(v.id),
       }));
     const mine: Command[] = personal
       .filter((it) => hit(it.title) || hit(it.username) || hit(it.url))

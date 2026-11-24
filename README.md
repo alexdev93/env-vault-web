@@ -35,7 +35,7 @@ edited (including renames) and deleted, and carries notes. Every value keeps its
 restore). The Variables tab has a branch switch: pick a branch to see exactly
 what `-b <branch>` gets. Under **Personal**, the vault also keeps logins,
 secure notes and secrets that aren't a project's environment. Values are never in the list response: the
-dashboard fetches one value per reveal or copy (`GET /api/vars/:key/value`).
+dashboard fetches one value per reveal or copy (`GET /api/vars/:id/value`).
 
 ## Commands
 

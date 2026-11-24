@@ -3,13 +3,17 @@
 
 // The list carries names and metadata only. Values are fetched one at a time
 // with api.getValue(), per reveal or copy, and dropped again on hide.
+// A variable belongs to one project (or none: personal), so the same key can
+// exist in several projects, each with its own value.
 export interface Var {
+  id: string;
   key: string;
   type: "var";
   notes: string;
   updated_at: string;
-  projects: string[];
-  shared: boolean;
+  project_id: string | null;
+  /** The project's name, or null for a personal variable. */
+  project: string | null;
 }
 
 /** Where one of a project's pieces lives: database on Neon, hosting on Cloudflare, ... */
@@ -177,7 +181,7 @@ export interface ActivityQuery {
 
 /** What a history belongs to: a variable, one branch's value, or a personal item. */
 export const owners = {
-  var: (key: string) => `var:${key}`,
+  var: (id: string) => `var:${id}`,
   branch: (branchId: string, key: string) => `branch:${branchId}:${key}`,
   item: (id: string) => `item:${id}`,
 };
@@ -200,7 +204,7 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
 }
 
 const enc = encodeURIComponent;
-const varPath = (key: string) => `/api/vars/${enc(key)}`;
+const varPath = (id: string) => `/api/vars/${enc(id)}`;
 const branchVarPath = (branchId: string, key: string) => `/api/branches/${enc(branchId)}/vars/${enc(key)}`;
 const send = <T = { ok: true },>(method: string, path: string, body?: unknown) =>
   request<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -210,13 +214,14 @@ export const api = {
   logout: () => request<{ ok: true }>("/api/logout", { method: "POST" }),
   token: () => request<{ token: string; url: string }>("/api/token"),
   listVars: () => request<Var[]>("/api/vars"),
-  getValue: async (key: string) => (await request<{ value: string }>(`${varPath(key)}/value`, { cache: "no-store" })).value,
-  saveVar: (key: string, value: string, projects: string[], notes: string) =>
-    send<{ ok: true; key: string }>("POST", "/api/vars", { key, value, projects, notes }),
-  /** Partial edit; a different `key` renames the variable. */
-  updateVar: (key: string, changes: { key?: string; value?: string; notes?: string; projects?: string[] }) =>
-    send<{ ok: true; key: string }>("PATCH", varPath(key), changes),
-  deleteVar: (key: string) => send("DELETE", varPath(key)),
+  getValue: async (id: string) => (await request<{ value: string }>(`${varPath(id)}/value`, { cache: "no-store" })).value,
+  /** Creates KEY in the project (null: personal), or replaces its value if the project already has it. */
+  saveVar: (key: string, value: string, projectId: string | null, notes: string) =>
+    send<{ ok: true; id: string; key: string }>("POST", "/api/vars", { key, value, project_id: projectId, notes }),
+  /** Partial edit; a different `key` renames it, a different `project_id` moves it. */
+  updateVar: (id: string, changes: { key?: string; value?: string; notes?: string; project_id?: string | null }) =>
+    send<{ ok: true; id: string; key: string }>("PATCH", varPath(id), changes),
+  deleteVar: (id: string) => send("DELETE", varPath(id)),
 
   listProjects: () => request<Project[]>("/api/projects"),
   getProject: (ref: string) => request<ProjectDetail>(`/api/projects/${enc(ref)}`),
